@@ -2,9 +2,16 @@
 FROM python:3.14-slim-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    default-jre-headless \
-    tesseract-ocr \
     ca-certificates \
+    gnupg \
+    tesseract-ocr \
+    wget \
+    && wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public \
+    | gpg --dearmor -o /etc/apt/trusted.gpg.d/adoptium.gpg \
+    && echo "deb https://packages.adoptium.net/artifactory/deb bookworm main" \
+    > /etc/apt/sources.list.d/adoptium.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends temurin-25-jre \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
