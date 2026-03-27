@@ -140,7 +140,6 @@ def locate_errors_in_pdf(
             )
 
             if best_rect is None:
-                all_pages = list(range(0, start_page)) + list(range(end_page, len(doc)))
                 best_page, best_rect = _search_pages(
                     word,
                     range(len(doc)),
@@ -247,123 +246,91 @@ def _write_summary_pages(
     doc: fitz.Document,
     located_errors: list[dict],
     coherence_findings: list[dict],
+    evaluation: dict,
 ) -> None:
-    """Append well-formatted summary pages at the end of the document."""
+    """Append a concise evaluation summary at the end of the document.
+
+    Instead of listing every note again, this gives a high-level overview:
+    statistics and LLM strengths/weaknesses.
+    """
     w = _PageWriter(doc)
 
     grammar_count = len(located_errors)
     coherence_count = len(coherence_findings)
-    total = grammar_count + coherence_count
 
-    w.text("Paper-Pilot  -  Analysebericht", fontsize=20, bold=True)
+    errors = sum(1 for f in coherence_findings if f.get("severity") == "error")
+    warnings = sum(1 for f in coherence_findings if f.get("severity") == "warning")
+    infos = coherence_count - errors - warnings
+
+    w.text("Paper Pilot  -  Analysis Report", fontsize=20, bold=True)
     w.skip(6)
     w.line()
-    w.skip(4)
+    w.skip(8)
 
-    if total == 0:
-        w.text(
-            "Es wurden keine Fehler gefunden. "
-            "Die Arbeit weist eine korrekte Grammatik und "
-            "eine schluessige inhaltliche Struktur auf.",
-            fontsize=11,
-        )
-        return
-
-    w.text("Übersicht", fontsize=14, bold=True)
+    w.text("Statistics", fontsize=14, bold=True)
     w.skip(4)
-    w.text(f"Grammatik- und Rechtschreibfehler:   {grammar_count}", fontsize=11)
-    w.text(f"Inhaltliche Hinweise (AI):          {coherence_count}", fontsize=11)
+    w.text(f"Grammar & spelling issues:   {grammar_count}", fontsize=11)
+    w.text(
+        f"Coherence findings:          {coherence_count}"
+        + (f"  ({errors} error, {warnings} warning, {infos} info)" if coherence_count else ""),
+        fontsize=11,
+    )
+    w.skip(4)
+    w.text(
+        "All issues are annotated as sticky notes in the PDF at their "
+        "respective positions. Refer to the annotations for details.",
+        fontsize=9.5,
+        color=(0.35, 0.35, 0.35),
+    )
     w.skip(6)
     w.line()
-    w.skip(6)
+    w.skip(8)
 
-    if grammar_count:
-        w.text("1.  Grammatik und Rechtschreibung", fontsize=14, bold=True)
-        w.skip(6)
+    strengths = evaluation.get("strengths", [])
+    weaknesses = evaluation.get("weaknesses", [])
 
-        sections_seen: dict[str, list[dict]] = {}
-        for err in located_errors:
-            sections_seen.setdefault(err.get("section", "-"), []).append(err)
-
-        idx = 0
-        for section, errs in sections_seen.items():
-            first_page = next(
-                (e["page"] for e in errs if e.get("page") is not None), None
-            )
-            page_hint = f"  (Seite {first_page + 1})" if first_page is not None else ""
-            w.text(f"{section}{page_hint}", fontsize=11, bold=True, indent=10)
+    if strengths:
+        w.text("Strengths", fontsize=14, bold=True, color=(0.1, 0.55, 0.2))
+        w.skip(4)
+        for s in strengths:
+            w.text(f"+  {s}", fontsize=10.5, indent=10)
             w.skip(2)
-
-            for e in errs:
-                idx += 1
-                word = e.get("word", "")
-                msg = e.get("message", "")
-                prefix = f"{idx}."
-                line = (
-                    f"{prefix}  \u00ab{word}\u00bb  -  {msg}"
-                    if word
-                    else f"{prefix}  {msg}"
-                )
-                w.text(line, fontsize=9.5, indent=20)
-
-                replacements = e.get("replacements")
-                if replacements:
-                    w.text(
-                        f"Vorschlag: {', '.join(replacements)}",
-                        fontsize=9,
-                        indent=35,
-                        color=(0.25, 0.25, 0.25),
-                    )
-                w.skip(2)
-
-            w.skip(4)
-
-        w.line()
         w.skip(6)
 
-    if coherence_count:
-        section_num = "2" if grammar_count else "1"
-        w.text(
-            f"{section_num}.  Inhaltliche Analyse (Roter Faden, Stil, Logik)",
-            fontsize=14,
-            bold=True,
-        )
+    if weaknesses:
+        w.text("Areas for Improvement", fontsize=14, bold=True, color=(0.8, 0.1, 0.1))
+        w.skip(4)
+        for wk in weaknesses:
+            w.text(f"-  {wk}", fontsize=10.5, indent=10)
+            w.skip(2)
         w.skip(6)
 
-        for i, f in enumerate(coherence_findings, 1):
-            severity = f.get("severity", "info")
-            label = _SEVERITY_LABELS.get(severity, "HINWEIS")
-            sev_color = {
-                "error": (0.8, 0.1, 0.1),
-                "warning": (0.75, 0.5, 0.0),
-                "info": (0.18, 0.4, 0.9),
-            }.get(severity, (0.18, 0.4, 0.9))
-
+    if not strengths and not weaknesses:
+        if grammar_count == 0 and coherence_count == 0:
             w.text(
-                f"{i}.  [{label}]  {f['section']}", fontsize=11, bold=True, indent=10
+                "No issues found. The document has correct grammar and a "
+                "coherent structure.",
+                fontsize=11,
             )
-            w.skip(2)
-            w.text(f["issue"], fontsize=9.5, indent=20)
-            if f.get("suggestion"):
-                w.text(
-                    f"Vorschlag: {f['suggestion']}",
-                    fontsize=9,
-                    indent=20,
-                    color=(0.25, 0.25, 0.25),
-                )
-            w.skip(6)
+        else:
+            w.text(
+                "See the sticky-note annotations throughout the document "
+                "for detailed feedback on each issue.",
+                fontsize=11,
+            )
 
 
 def annotate_pdf(
     pdf_bytes: bytes,
     located_errors: list[dict],
     coherence_findings: list[dict] | None = None,
+    evaluation: dict | None = None,
 ) -> bytes:
     """Annotate the PDF with grammar errors and coherence findings.
 
     Grammar errors: yellow highlight + yellow "Note" sticky note.
-    Coherence findings: blue "Comment" sticky note at the section heading.
-    A summary of all findings is appended as extra pages at the end.
+    Coherence findings: blue "Comment" sticky note at the quote position.
+    A high-level evaluation summary is appended at the end.
 
     Returns the annotated PDF as bytes (nothing is written to disk).
     """
@@ -393,34 +360,55 @@ def annotate_pdf(
         )
         note.update()
 
+    section_ranges = _build_section_page_ranges(doc, [{"section": f["section"]} for f in (coherence_findings or [])])
+
     for finding in coherence_findings or []:
         section = finding["section"]
-        page_num = _find_heading_page(doc, section)
-        if page_num is None:
-            continue
-
-        page = doc[page_num]
-
-        rects = page.search_for(section)
-        if rects:
-            point = fitz.Point(rects[0].x1 + 2, rects[0].y0)
-        else:
-            point = fitz.Point(72, 72)
-
         severity = finding.get("severity", "info")
         label = _SEVERITY_LABELS.get(severity, "HINWEIS")
+        quote = finding.get("quote", "")
+        start_page, end_page = section_ranges.get(section, (0, len(doc)))
+
+        point = None
+
+        if quote:
+            for pn in range(start_page, end_page):
+                rects = doc[pn].search_for(quote)
+                if rects:
+                    point = fitz.Point(rects[0].x1 + 2, rects[0].y0)
+                    page_num = pn
+                    break
+
+            if point is None:
+                words = quote.split()
+                if len(words) > 4:
+                    fragment = " ".join(words[:5])
+                    for pn in range(start_page, end_page):
+                        rects = doc[pn].search_for(fragment)
+                        if rects:
+                            point = fitz.Point(rects[0].x1 + 2, rects[0].y0)
+                            page_num = pn
+                            break
+
+        if point is None:
+            page_num = _find_heading_page(doc, section)
+            if page_num is None:
+                page_num = start_page
+            rects = doc[page_num].search_for(section)
+            point = fitz.Point(rects[0].x1 + 2, rects[0].y0) if rects else fitz.Point(72, 72)
 
         parts = [f"[{label}] {finding['issue']}"]
         if finding.get("suggestion"):
-            parts.append(f"Vorschlag: {finding['suggestion']}")
+            parts.append(f"Suggestion: {finding['suggestion']}")
         note_text = "\n".join(parts)
 
+        page = doc[page_num]
         note = page.add_text_annot(point, note_text, icon="Comment")
         note.set_colors(stroke=_BLUE)
-        note.set_info(title=f"Kohärenz – {section}")
+        note.set_info(title=f"Coherence - {section}")
         note.update()
 
-    _write_summary_pages(doc, located_errors, coherence_findings or [])
+    _write_summary_pages(doc, located_errors, coherence_findings or [], evaluation or {})
 
     result = doc.tobytes()
     doc.close()

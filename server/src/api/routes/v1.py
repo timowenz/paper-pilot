@@ -21,9 +21,9 @@ async def analyze_pdf(file: UploadFile = File(...)):
     results = check_all_chunks(chunks, whitelist)
     located = locate_errors_in_pdf(pdf_bytes, results, chunks)
 
-    findings = check_coherence(chunks)
+    findings, evaluation = check_coherence(chunks)
 
-    annotated_bytes = annotate_pdf(pdf_bytes, located, findings)
+    annotated_bytes = annotate_pdf(pdf_bytes, located, findings, evaluation)
 
     filename = f"{original_name}_annotated.pdf"
     return Response(
