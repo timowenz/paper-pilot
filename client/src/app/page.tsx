@@ -17,7 +17,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+/** When unset, requests go to `/api/...` and Next.js rewrites to the backend (see `next.config.ts`). */
+const ANALYZE_PDF_URL = (() => {
+  const base = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "";
+  return base ? `${base}/analyze-pdf` : "/api/analyze-pdf";
+})();
 
 type State = "idle" | "analyzing" | "done" | "error";
 
@@ -139,7 +143,7 @@ export default function Home() {
       const form = new FormData();
       form.append("file", file);
 
-      const res = await fetch(`${API_URL}/analyze-pdf`, {
+      const res = await fetch(ANALYZE_PDF_URL, {
         method: "POST",
         body: form,
       });

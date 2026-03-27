@@ -31,6 +31,12 @@ Create `server/.env` (gitignored). Values are loaded at startup with `python-dot
 |----------|----------|-------------|
 | `OPENROUTER_API_KEY` | Yes | OpenRouter API key (coherence step) |
 | `COHERENCE_MODEL` | No | Model id (default: `openai/gpt-oss-20b:free`) |
+| `HOST` / `PORT` | No | Bind address (default `127.0.0.1:8000`; use `HOST=0.0.0.0` in containers). |
+| `CORS_ORIGINS` | No | Comma-separated origins (default includes `http://localhost:3000`). |
+
+## Docker
+
+From the repo root, `docker compose` builds `server/Dockerfile` (Debian slim, Java + Tesseract, `uv sync`). The API listens on `0.0.0.0:8000`. See the [root README](../README.md#docker) for Compose and GHCR.
 
 ## Run
 
@@ -39,7 +45,11 @@ cd server/src
 uv run python main.py
 ```
 
-API base: [http://127.0.0.1:8000](http://127.0.0.1:8000). CORS allows `http://localhost:3000` for the Next.js client.
+API base: [http://127.0.0.1:8000](http://127.0.0.1:8000). CORS defaults allow the Next.js dev origin; override with `CORS_ORIGINS` if needed.
+
+### `GET /health`
+
+Returns `{"status":"ok"}` for load balancers and Compose health checks.
 
 ## API
 

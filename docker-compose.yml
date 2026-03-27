@@ -1,0 +1,26 @@
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: paper-pilot-server:local
+    ports:
+      - "8000:8000"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      COHERENCE_MODEL: ${COHERENCE_MODEL:-}
+      COHERENCE_MAX_TOKENS: ${COHERENCE_MAX_TOKENS:-}
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://server:8000
+    image: paper-pilot-client:local
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server

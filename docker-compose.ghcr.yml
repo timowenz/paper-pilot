@@ -1,0 +1,26 @@
+# Run pre-built images from GitHub Container Registry.
+#
+#   export GHCR_OWNER=your-github-username   # lowercase, same as GitHub login / org
+#   export OPENROUTER_API_KEY=sk-...
+#   docker compose -f docker-compose.ghcr.yml up
+#
+# Images: ghcr.io/$GHCR_OWNER/paper-pilot-server:latest and paper-pilot-client:latest
+
+services:
+  server:
+    image: ghcr.io/${GHCR_OWNER}/paper-pilot-server:latest
+    ports:
+      - "8000:8000"
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      COHERENCE_MODEL: ${COHERENCE_MODEL:-}
+      COHERENCE_MAX_TOKENS: ${COHERENCE_MAX_TOKENS:-}
+
+  client:
+    image: ghcr.io/${GHCR_OWNER}/paper-pilot-client:latest
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
