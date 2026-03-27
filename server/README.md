@@ -5,8 +5,8 @@ FastAPI backend that analyzes academic PDFs for grammar, spelling, and coherence
 ## Pipeline
 
 1. **Parse** — Text extraction with `pymupdf4llm`, cleanup of OCR noise, section-aware chunking.
-2. **Spellcheck** — LanguageTool per chunk, with heuristics to reduce false positives (whitelist, list detection, skippable sections).
-3. **Coherence** — Full-document pass via OpenRouter (LLM) for flow, logic, and style.
+2. **Spellcheck** — Language is detected from the PDF text; LanguageTool runs with the matching locale (fallback `en-US` if unsupported). Heuristics reduce false positives (whitelist, list detection, skippable sections; German-specific rules only for German).
+3. **Coherence** — Full-document pass via OpenRouter (LLM); narrative output is instructed to match the document’s primary language.
 4. **Annotate** — Errors located in the PDF, notes attached, summary appended.
 5. **Return** — PDF bytes in the HTTP response.
 

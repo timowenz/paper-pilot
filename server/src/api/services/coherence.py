@@ -8,6 +8,8 @@ import re
 import json_repair
 from openai import OpenAI
 
+from api.services.language_support import document_language_for_llm
+
 logger = logging.getLogger(__name__)
 
 _OPENROUTER_BASE = "https://openrouter.ai/api/v1"
@@ -15,64 +17,66 @@ _DEFAULT_MODEL = "openai/gpt-oss-20b:free"
 _DEFAULT_MAX_TOKENS = 16384
 
 _SYSTEM_PROMPT = """\
-Du bist ein erfahrener akademischer Lektor. Du erhältst die Abschnitte einer \
-wissenschaftlichen Arbeit (Bachelor-/Masterarbeit) und prüfst ausschließlich:
+You are an experienced academic editor. You receive sections of a scholarly document \
+(thesis, paper, report). Evaluate only:
 
-1. **Roter Faden**: Gibt es eine nachvollziehbare, logische Abfolge der Abschnitte? \
-Baut jeder Abschnitt sinnvoll auf dem vorherigen auf?
-2. **Logische Brüche**: Gibt es Stellen, an denen der Gedankengang abrupt wechselt, \
-Argumente fehlen oder Schlussfolgerungen nicht aus dem Vorherigen folgen?
-3. **Akademischer Schreibstil**: Wird durchgängig ein sachlicher, präziser, \
-wissenschaftlicher Ton verwendet? Gibt es umgangssprachliche oder zu informelle Passagen?
+1. **Structure / narrative flow**: Is there a clear, logical progression? Does each \
+section build sensibly on the previous one?
+2. **Logical gaps**: Abrupt shifts, missing arguments, or conclusions that do not \
+follow from what came before?
+3. **Academic tone**: Appropriate precision and formality? Any overly colloquial passages?
 
-WICHTIG: Antworte IMMER in derselben Sprache, in der die Arbeit verfasst ist. \
-Ist die Arbeit auf Deutsch, antworte auf Deutsch. Ist sie auf Englisch, antworte auf Englisch.
+The document may be written in **any human language**. The user message states the \
+detected primary language — you MUST write **all** human-readable JSON string values \
+in **that same language**: every "issue", "suggestion", "strengths", "weaknesses", \
+and "overall" entry. Do **not** default to English unless the document is English.
 
-Antworte ausschließlich mit einem JSON-Objekt in exakt diesem Format:
+Reply with **only** a JSON object in exactly this shape (keys in English as shown):
 
 ```json
 {
   "findings": [
     {
-      "section": "<exakter Titel des betroffenen Abschnitts>",
-      "quote": "<wörtliches Zitat von 5-15 aufeinanderfolgenden Wörtern aus dem Text an der Problemstelle>",
-      "issue": "<Beschreibung des Problems, 1-2 Sätze>",
-      "suggestion": "<konkreter Verbesserungsvorschlag, 1-2 Sätze>",
+      "section": "<exact affected section title from the document>",
+      "quote": "<verbatim 5-15 consecutive words from the document at the problem>",
+      "issue": "<1-2 sentences, in the document language>",
+      "suggestion": "<1-2 sentences, in the document language>",
       "severity": "info | warning | error"
     }
   ],
   "evaluation": {
-    "strengths": ["<Stärke 1>", "<Stärke 2>"],
-    "weaknesses": ["<Schwäche 1>", "<Schwäche 2>"],
-    "overall": "<Gesamtbewertung der Arbeit in 2-4 Sätzen>"
+    "strengths": ["<in the document language>", "..."],
+    "weaknesses": ["<in the document language>", "..."],
+    "overall": "<2-4 sentences in the document language>"
   }
 }
 ```
 
-Das Feld "quote" MUSS ein wörtliches Zitat aus dem Originaltext sein, damit die \
-Problemstelle im PDF gefunden werden kann. Kopiere die Wörter exakt.
+The "quote" field MUST be copied **verbatim** from the document so the location can \
+be found in the PDF.
 
-"evaluation" ist eine Gesamtbewertung: was ist gut, was ist schlecht, wie ist der \
-Gesamteindruck? Beziehe dich dabei auf die gesamte Arbeit.
+If you find no issues, set "findings" to [].
 
-Wenn du keine Probleme findest, setze "findings" auf ein leeres Array [].
-Antworte NUR mit dem JSON-Objekt, ohne Erklärung davor oder danach.
+CRITICAL for valid JSON: Inside string values, do not use the ASCII double-quote \
+character U+0022 except at the start and end of each JSON string. For inner quotation \
+in running text use typographic quotes (e.g. « » or “ ”) or rephrase without quotes.
 
-KRITISCH für gültiges JSON: In "issue", "suggestion", "quote" und "overall" \
-darf das gerade ASCII-Anführungszeichen " (U+0022) NUR am Anfang und Ende \
-jedes JSON-Stringwerts vorkommen — niemals mitten im Text. Für Zitate im Fliesstext \
-nur typografische Zeichen („ … ") oder « … » verwenden, oder ohne Anführungszeichen \
-paraphrasieren. Sonst ist die Antwort kein parsebares JSON.\
+Reply with the JSON object only — no markdown outside it, no preamble or postscript.\
 """
 
 
-def _build_user_prompt(chunks: list[dict]) -> str:
+def _build_user_prompt(chunks: list[dict], doc_iso: str, doc_name: str) -> str:
+    header = (
+        f'DOCUMENT_PRIMARY_LANGUAGE: ISO 639-1 "{doc_iso}" ({doc_name}).\n'
+        f"Write all narrative fields (issue, suggestion, strengths, weaknesses, overall) "
+        f"in {doc_name}. The section titles and quote substrings must match the document.\n\n"
+    )
     parts: list[str] = []
     for c in chunks:
         level = c["heading_level"]
         prefix = "#" * level
         parts.append(f"{prefix} {c['section']}\n\n{c['text']}")
-    return "\n\n---\n\n".join(parts)
+    return header + "\n\n---\n\n".join(parts)
 
 
 _EMPTY_EVALUATION: dict = {
@@ -206,9 +210,15 @@ def check_coherence(chunks: list[dict]) -> tuple[list[dict], dict]:
 
     client = OpenAI(base_url=_OPENROUTER_BASE, api_key=api_key)
 
-    user_prompt = _build_user_prompt(chunks)
-
-    logger.info("Sending %d chunks to %s for coherence check", len(chunks), model)
+    doc_iso, doc_name = document_language_for_llm(chunks)
+    user_prompt = _build_user_prompt(chunks, doc_iso, doc_name)
+    logger.info(
+        "Sending %d chunks to %s for coherence check (document language: %s / %s)",
+        len(chunks),
+        model,
+        doc_iso,
+        doc_name,
+    )
 
     try:
         response = client.chat.completions.create(
