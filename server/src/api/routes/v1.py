@@ -23,7 +23,7 @@ async def analyze_pdf(file: UploadFile = File(...)):
 
     findings, evaluation = check_coherence(chunks)
 
-    annotated_bytes = annotate_pdf(pdf_bytes, located, findings, evaluation)
+    annotated_bytes = annotate_pdf(pdf_bytes, located, findings, evaluation, chunks)
 
     filename = f"{original_name}_annotated.pdf"
     return Response(
