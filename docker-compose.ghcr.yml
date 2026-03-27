@@ -1,14 +1,17 @@
 # Run pre-built images from GitHub Container Registry.
 #
-#   export GHCR_OWNER=your-github-username   # lowercase, same as GitHub login / org
-#   export OPENROUTER_API_KEY=sk-...
-#   docker compose -f docker-compose.ghcr.yml up
+# Set GHCR_OWNER (your GitHub username or org, lowercase) or Compose leaves it empty
+# and you get: ghcr.io//paper-pilot-server:latest → "invalid reference format".
 #
-# Images: ghcr.io/$GHCR_OWNER/paper-pilot-server:latest and paper-pilot-client:latest
+# Most reliable: copy docker.env.example to `.env` in THIS directory (Compose loads
+# `.env` automatically for ${VAR} substitution). Or:
+#   docker compose --env-file /full/path/to/docker.env -f docker-compose.ghcr.yml up
+#
+# In docker.env / .env use KEY=value only — no `export`, no spaces around "=".
 
 services:
   server:
-    image: ghcr.io/${GHCR_OWNER}/paper-pilot-server:latest
+    image: "ghcr.io/${GHCR_OWNER:?GHCR_OWNER must be set in .env or docker.env}/paper-pilot-server:latest"
     ports:
       - "8000:8000"
     environment:
@@ -19,7 +22,7 @@ services:
       COHERENCE_MAX_TOKENS: ${COHERENCE_MAX_TOKENS:-}
 
   client:
-    image: ghcr.io/${GHCR_OWNER}/paper-pilot-client:latest
+    image: "ghcr.io/${GHCR_OWNER:?GHCR_OWNER must be set in .env or docker.env}/paper-pilot-client:latest"
     ports:
       - "3000:3000"
     depends_on:

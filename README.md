@@ -52,6 +52,8 @@ After you push to `main` (or tag `v*`), the workflow [.github/workflows/docker-g
 - `ghcr.io/<your-github-user>/paper-pilot-server:latest`
 - `ghcr.io/<your-github-user>/paper-pilot-client:latest`
 
+Images are built for **linux/amd64** and **linux/arm64** (e.g. Raspberry Pi 4/5). If you see `no matching manifest for linux/arm64`, pull again after a workflow run that includes this multi-platform build, or run **`docker compose pull`** to refresh tags.
+
 **One-time:** create a [GitHub personal access token](https://github.com/settings/tokens) with `read:packages` (pull) or use `GITHUB_TOKEN` when logged in via GitHub CLI. For a private repo, the image may be private; set package visibility under **Packages** in your profile or org.
 
 **Log in on any machine:**
@@ -62,13 +64,19 @@ echo YOUR_GITHUB_TOKEN | docker login ghcr.io -u YOUR_GITHUB_USERNAME --password
 
 **Run published images** (replace owner and use your key):
 
+The compose file needs **`GHCR_OWNER`** for image names. If it is missing, you get `ghcr.io//paper-pilot-server:latest` and **`invalid reference format`**.
+
+**Recommended:** copy [docker.env.example](docker.env.example) to **`.env`** in the same directory as `docker-compose.ghcr.yml`. Docker Compose loads **`.env` automatically** for `${GHCR_OWNER}` substitution (no `--env-file` needed):
+
 ```bash
-export GHCR_OWNER=your-github-username
-export OPENROUTER_API_KEY=sk-or-v1-...
-docker compose --env-file docker.env -f docker-compose.ghcr.yml up
+cp docker.env.example .env
+# edit .env: set GHCR_OWNER and OPENROUTER_API_KEY (no "export", no spaces around "=")
+docker compose -f docker-compose.ghcr.yml up
 ```
 
-Copy [docker.env.example](docker.env.example) to `docker.env` and edit `GHCR_OWNER` and `OPENROUTER_API_KEY`.
+**Alternative:** `docker compose --env-file docker.env ...` — if you use **`sudo`**, pass an **absolute** path: `--env-file /home/rpi/Desktop/docker.env`, because `sudo` can change how relative paths resolve.
+
+If substitution still fails, run `docker compose -f docker-compose.ghcr.yml config` and check that `image:` lines show `ghcr.io/yourname/...` with no double slash.
 
 ## Documentation
 
