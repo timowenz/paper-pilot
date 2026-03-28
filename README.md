@@ -52,7 +52,7 @@ After you push to `main` (or tag `v*`), the workflow [.github/workflows/docker-g
 - `ghcr.io/<your-github-user>/paper-pilot-server:latest`
 - `ghcr.io/<your-github-user>/paper-pilot-client:latest`
 
-Images are built for **linux/amd64** and **linux/arm64** (e.g. Raspberry Pi 4/5). If you see `no matching manifest for linux/arm64`, pull again after a workflow run that includes this multi-platform build, or run **`docker compose pull`** to refresh tags.
+Images are built for **linux/amd64** and **linux/arm64** (server and client). On Apple Silicon you get a **native ARM** server for speed. If German (or other Hunspell-backed) spellcheck still fails inside the container with native ARM, LanguageTool may be loading the wrong architecture’s natives ([LanguageTool#4543](https://github.com/languagetool-org/languagetool/issues/4543)); then add **`platform: linux/amd64`** under the **`server`** service in Compose (or `docker build --platform linux/amd64 ./server`) to use emulation only for the API.
 
 **One-time:** create a [GitHub personal access token](https://github.com/settings/tokens) with `read:packages` (pull) or use `GITHUB_TOKEN` when logged in via GitHub CLI. For a private repo, the image may be private; set package visibility under **Packages** in your profile or org.
 

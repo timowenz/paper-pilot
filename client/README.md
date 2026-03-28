@@ -30,6 +30,8 @@ The app is served at [http://localhost:3000](http://localhost:3000). By default 
 | `NEXT_PUBLIC_API_URL` | No | If set, the app calls this origin for `POST /analyze-pdf`. If unset, requests go to `/api/...` and Next.js rewrites them (see `next.config.ts` — use `BACKEND_URL` at build time in Docker). |
 | `BACKEND_URL` | No | **Build-time** only: where the Next.js server proxies `/api/*` (default `http://127.0.0.1:8000`). In Docker Compose this is set to `http://server:8000`. |
 
+`next.config.ts` sets a long **`experimental.proxyTimeout`** (and upload size) so `/api/analyze-pdf` is not cut off after Next’s default **30s** proxy limit — without that, long OCR / LanguageTool / LLM runs show **`socket hang up` / `ECONNRESET`** in the browser.
+
 Only variables prefixed with `NEXT_PUBLIC_` are exposed to the browser; do not put API keys there.
 
 ## Production

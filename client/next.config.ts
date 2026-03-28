@@ -6,6 +6,10 @@ const backend =
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  experimental: {
+    proxyTimeout: 1_200_000, // 20 minutes (ms)
+    proxyClientMaxBodySize: "50mb",
+  },
   async rewrites() {
     return [
       {

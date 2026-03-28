@@ -1,17 +1,14 @@
 # syntax=docker/dockerfile:1
-FROM python:3.14-slim-bookworm
+# Hunspell: use -dev so /usr/lib/.../libhunspell.so symlink exists (JNA often loads that
+# name; runtime-only libhunspell-*-0 was not enough on arm64 — see LanguageTool#4543 / RPi reports).
+# If it still fails on arm64, pin server to platform: linux/amd64 in Compose.
+FROM python:3.14-slim-trixie
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
-    gnupg \
+    libhunspell-dev \
+    openjdk-25-jre-headless \
     tesseract-ocr \
-    wget \
-    && wget -qO - https://packages.adoptium.net/artifactory/api/gpg/key/public \
-    | gpg --dearmor -o /etc/apt/trusted.gpg.d/adoptium.gpg \
-    && echo "deb https://packages.adoptium.net/artifactory/deb bookworm main" \
-    > /etc/apt/sources.list.d/adoptium.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends temurin-25-jre \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv

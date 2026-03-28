@@ -1,6 +1,21 @@
+import logging
 import os
 
 import _load_env
+
+
+def _configure_logging() -> None:
+    """Required when the app is started via `uvicorn server:app` (Docker); `main.py` alone does not run."""
+    level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
+    level = getattr(logging, level_name, logging.INFO)
+    logging.basicConfig(
+        level=level,
+        format="%(levelname)s %(name)s: %(message)s",
+        force=True,
+    )
+
+
+_configure_logging()
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

@@ -23,7 +23,6 @@ jobs:
         id: owner
         run: echo "owner_lc=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
-      # ARM64 (e.g. Raspberry Pi) + AMD64 (typical PC/cloud): multi-platform manifest
       - uses: docker/setup-qemu-action@v3
 
       - uses: docker/setup-buildx-action@v3

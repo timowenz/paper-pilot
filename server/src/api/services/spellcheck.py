@@ -2,6 +2,7 @@ import logging
 import re
 
 import language_tool_python
+from language_tool_python.exceptions import LanguageToolError
 
 from api.services.language_support import (
     document_language_iso,
@@ -107,7 +108,22 @@ def check_chunk(
     lang = lt_language_for_chunk(chunk["text"], document_fallback_lt)
     tool = _get_tool(lang)
     ignored_rules = _ignored_rules_for_lt(lang)
-    matches = tool.check(chunk["text"])
+    try:
+        matches = tool.check(chunk["text"])
+    except LanguageToolError as exc:
+        logger.warning(
+            "LanguageTool check failed for chunk (lang=%s): %s",
+            lang,
+            exc,
+        )
+        matches = []
+    except Exception:
+        logger.exception(
+            "LanguageTool check failed unexpectedly (lang=%s, section=%r)",
+            lang,
+            chunk.get("section", ""),
+        )
+        matches = []
 
     errors = [
         {

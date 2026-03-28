@@ -33,10 +33,11 @@ Create `server/.env` (gitignored). Values are loaded at startup with `python-dot
 | `COHERENCE_MODEL` | No | Model id (default: `openai/gpt-oss-20b:free`) |
 | `HOST` / `PORT` | No | Bind address (default `127.0.0.1:8000`; use `HOST=0.0.0.0` in containers). |
 | `CORS_ORIGINS` | No | Comma-separated origins (default includes `http://localhost:3000`). |
+| `LOG_LEVEL` | No | Python log level for app loggers (`INFO`, `DEBUG`, …). Default `INFO`. Needed because Docker runs `uvicorn server:app` (not `main.py`); logging is configured in `server.py`. |
 
 ## Docker
 
-From the repo root, `docker compose` builds `server/Dockerfile` (Debian slim, Java + Tesseract, `uv sync`). The API listens on `0.0.0.0:8000`. See the [root README](../README.md#docker) for Compose and GHCR.
+From the repo root, `docker compose` builds `server/Dockerfile` (Debian slim, OpenJDK 25, `libhunspell-dev` for JNA, Tesseract, `uv sync`). Builds match your host architecture by default (arm64 on Apple Silicon). If spellcheck errors point at Hunspell on arm64 only, see [LanguageTool#4543](https://github.com/languagetool-org/languagetool/issues/4543) and the root README for an amd64 fallback. The API listens on `0.0.0.0:8000`.
 
 ## Run
 
