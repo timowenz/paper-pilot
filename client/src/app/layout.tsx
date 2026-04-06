@@ -10,6 +10,12 @@ const bricolage = Bricolage_Grotesque({
 export const metadata: Metadata = {
   title: "Paper Pilot",
   description: "Analyze academic papers for grammar, style, and coherence",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+  },
 };
 
 export default function RootLayout({

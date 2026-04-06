@@ -179,7 +179,17 @@ export default function Home() {
     <main className="flex flex-1 items-center justify-center p-6">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-xl">Paper Pilot</CardTitle>
+          <div className="flex items-center gap-3">
+            {/* Same mark as public/icon.svg (favicon) */}
+            <img
+              src="/icon.svg"
+              alt=""
+              width={32}
+              height={32}
+              className="size-8 shrink-0"
+            />
+            <CardTitle className="text-xl">Paper Pilot</CardTitle>
+          </div>
           <CardDescription>
             Upload a PDF to check it for grammar, style, and coherence.
           </CardDescription>
